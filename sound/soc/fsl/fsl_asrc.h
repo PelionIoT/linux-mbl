@@ -25,7 +25,6 @@
 #define ASRC_FIFO_THRESHOLD_MAX		63
 #define ASRC_DMA_BUFFER_SIZE		(1024 * 48 * 4)
 #define ASRC_MAX_BUFFER_SIZE		(1024 * 48)
-#define ASRC_OUTPUT_LAST_SAMPLE_MAX	32
 #define ASRC_OUTPUT_LAST_SAMPLE		8
 
 #define IDEAL_RATIO_RATE		1000000
@@ -291,6 +290,7 @@
 
 #define ASRC_CLK_MAX_NUM	16
 
+
 struct dma_block {
 	dma_addr_t dma_paddr;
 	void *dma_vaddr;
@@ -371,4 +371,5 @@ struct fsl_asrc {
 
 extern struct snd_soc_platform_driver fsl_asrc_platform;
 struct dma_chan *fsl_asrc_get_dma_channel(struct fsl_asrc_pair *pair, bool dir);
+
 #endif /* _FSL_ASRC_H */
