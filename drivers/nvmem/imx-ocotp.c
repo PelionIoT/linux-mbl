@@ -3,6 +3,8 @@
  *
  * Copyright (c) 2015 Pengutronix, Philipp Zabel <p.zabel@pengutronix.de>
  *
+ * Copyright 2017 NXP
+ *
  * Based on the barebox ocotp driver,
  * Copyright (c) 2010 Baruch Siach <baruch@tkos.co.il>,
  *	Orex Computed Radiography
@@ -40,10 +42,7 @@
 #define IMX_OCOTP_ADDR_CTRL_SET		0x0004
 #define IMX_OCOTP_ADDR_CTRL_CLR		0x0008
 #define IMX_OCOTP_ADDR_TIMING		0x0010
-#define IMX_OCOTP_ADDR_DATA0		0x0020
-#define IMX_OCOTP_ADDR_DATA1		0x0030
-#define IMX_OCOTP_ADDR_DATA2		0x0040
-#define IMX_OCOTP_ADDR_DATA3		0x0050
+#define IMX_OCOTP_ADDR_DATA		0x0020
 
 #define IMX_OCOTP_BM_CTRL_ADDR		0x0000007F
 #define IMX_OCOTP_BM_CTRL_BUSY		0x00000100
@@ -51,24 +50,16 @@
 #define IMX_OCOTP_BM_CTRL_REL_SHADOWS	0x00000400
 
 #define DEF_RELAX			20 /* > 16.5ns */
-#define DEF_FSOURCE			1001
 #define IMX_OCOTP_WR_UNLOCK		0x3E770000
 #define IMX_OCOTP_READ_LOCKED_VAL	0xBADABADA
 
 static DEFINE_MUTEX(ocotp_mutex);
 
-struct octp_params {
-	unsigned int nregs;
-	bool banked;
-	unsigned int regs_per_bank;
-	bool mx7_timing;
-};
-
 struct ocotp_priv {
 	struct device *dev;
 	struct clk *clk;
 	void __iomem *base;
-	struct octp_params *params;
+	unsigned int nregs;
 	struct nvmem_config *config;
 };
 
@@ -125,22 +116,29 @@ static int imx_ocotp_read(void *context, unsigned int offset,
 {
 	struct ocotp_priv *priv = context;
 	unsigned int count;
-	u32 *buf = val;
+	u8 *buf, *p;
 	int i, ret;
-	u32 index;
+	u32 index, num_bytes;
 
 	index = offset >> 2;
-	count = bytes >> 2;
+	num_bytes = round_up((offset % 4) + bytes, 4);
+	count = num_bytes >> 2;
 
-	if (count > (priv->params->nregs - index))
-		count = priv->params->nregs - index;
+	if (count > (priv->nregs - index))
+		count = priv->nregs - index;
 
 	mutex_lock(&ocotp_mutex);
+
+	p = kzalloc(num_bytes, GFP_KERNEL);
+	if (!p)
+		return -ENOMEM;
+	buf = p;
 
 	ret = clk_prepare_enable(priv->clk);
 	if (ret < 0) {
 		mutex_unlock(&ocotp_mutex);
 		dev_err(priv->dev, "failed to prepare/enable ocotp clk\n");
+		kfree(p);
 		return ret;
 	}
 
@@ -151,7 +149,7 @@ static int imx_ocotp_read(void *context, unsigned int offset,
 	}
 
 	for (i = index; i < (index + count); i++) {
-		*buf++ = readl(priv->base + IMX_OCOTP_OFFSET_B0W0 +
+		*(u32 *)buf = readl(priv->base + IMX_OCOTP_OFFSET_B0W0 +
 			       i * IMX_OCOTP_OFFSET_PER_WORD);
 
 		/* 47.3.1.2
@@ -160,22 +158,51 @@ static int imx_ocotp_read(void *context, unsigned int offset,
 		 * software before any new write, read or reload access can be
 		 * issued
 		 */
-		if (*(buf - 1) == IMX_OCOTP_READ_LOCKED_VAL)
+		if (*((u32*)buf) == IMX_OCOTP_READ_LOCKED_VAL)
 			imx_ocotp_clr_err_if_set(priv->base);
+
+		buf += 4;
 	}
 	ret = 0;
+
+	index = offset % 4;
+	memcpy(val, &p[index], bytes);
 
 read_end:
 	clk_disable_unprepare(priv->clk);
 	mutex_unlock(&ocotp_mutex);
+
+	kfree(p);
+
 	return ret;
 }
 
-static void imx_ocotp_set_imx6_timing(struct ocotp_priv *priv)
+static int imx_ocotp_write(void *context, unsigned int offset, void *val,
+			   size_t bytes)
 {
+	struct ocotp_priv *priv = context;
+	u32 *buf = val;
+	int ret;
+
 	unsigned long clk_rate = 0;
 	unsigned long strobe_read, relax, strobe_prog;
 	u32 timing = 0;
+	u32 ctrl;
+	u8 waddr;
+
+	/* allow only writing one complete OTP word at a time */
+	if ((bytes != priv->config->word_size) ||
+	    (offset % priv->config->word_size))
+		return -EINVAL;
+
+	mutex_lock(&ocotp_mutex);
+
+	ret = clk_prepare_enable(priv->clk);
+	if (ret < 0) {
+		mutex_unlock(&ocotp_mutex);
+		dev_err(priv->dev, "failed to prepare/enable ocotp clk\n");
+		return ret;
+	}
 
 	/* 47.3.1.3.1
 	 * Program HW_OCOTP_TIMING[STROBE_PROG] and HW_OCOTP_TIMING[RELAX]
@@ -194,57 +221,6 @@ static void imx_ocotp_set_imx6_timing(struct ocotp_priv *priv)
 	timing |= (strobe_read << 16) & 0x003F0000;
 
 	writel(timing, priv->base + IMX_OCOTP_ADDR_TIMING);
-}
-
-static void imx_ocotp_set_imx7_timing(struct ocotp_priv *priv)
-{
-	unsigned long clk_rate = 0;
-	unsigned long fsource, strobe_prog;
-	u32 timing = 0;
-
-	/* i.MX 7Solo Applications Processor Reference Manual, Rev. 0.1
-	 * 6.4.3.3
-	 */
-	clk_rate = clk_get_rate(priv->clk);
-	fsource = DIV_ROUND_UP(((clk_rate / 1000) * DEF_FSOURCE), 1000000) + 1;
-	strobe_prog = ((clk_rate * 10) / 1000000) + 1;
-
-	timing = strobe_prog & 0x00000FFF;
-	timing |= (fsource       << 12) & 0x000FF000;
-
-	writel(timing, priv->base + IMX_OCOTP_ADDR_TIMING);
-}
-
-static int imx_ocotp_write(void *context, unsigned int offset, void *val,
-			   size_t bytes)
-{
-	struct ocotp_priv *priv = context;
-	u32 *buf = val;
-	int ret;
-
-	u32 ctrl;
-	u8 waddr;
-	u8 word = 0;
-
-	/* allow only writing one complete OTP word at a time */
-	if ((bytes != priv->config->word_size) ||
-	    (offset % priv->config->word_size))
-		return -EINVAL;
-
-	mutex_lock(&ocotp_mutex);
-
-	ret = clk_prepare_enable(priv->clk);
-	if (ret < 0) {
-		mutex_unlock(&ocotp_mutex);
-		dev_err(priv->dev, "failed to prepare/enable ocotp clk\n");
-		return ret;
-	}
-
-	/* Setup the write timing values */
-	if (priv->params->mx7_timing)
-		imx_ocotp_set_imx7_timing(priv);
-	else
-		imx_ocotp_set_imx6_timing(priv);
 
 	/* 47.3.1.3.2
 	 * Check that HW_OCOTP_CTRL[BUSY] and HW_OCOTP_CTRL[ERROR] are clear.
@@ -265,22 +241,8 @@ static int imx_ocotp_write(void *context, unsigned int offset, void *val,
 	 * description. Both the unlock code and address can be written in the
 	 * same operation.
 	 */
-	if (priv->params->banked) {
-		/*
-		 * In banked mode the OTP register bank goes into waddr see
-		 * i.MX 7Solo Applications Processor Reference Manual, Rev. 0.1
-		 * 6.4.3.1
-		 */
-		offset = offset / priv->config->word_size;
-		waddr = offset / priv->params->regs_per_bank;
-		word  = offset & (priv->params->regs_per_bank - 1);
-	} else {
-		/*
-		 * OTP write/read address specifies one of 128 word address
-		 * locations
-		 */
-		waddr = offset / 4;
-	}
+	/* OTP write/read address specifies one of 128 word address locations */
+	waddr = offset / 4;
 
 	ctrl = readl(priv->base + IMX_OCOTP_ADDR_CTRL);
 	ctrl &= ~IMX_OCOTP_BM_CTRL_ADDR;
@@ -306,41 +268,8 @@ static int imx_ocotp_write(void *context, unsigned int offset, void *val,
 	 * shift right (with zero fill). This shifting is required to program
 	 * the OTP serially. During the write operation, HW_OCOTP_DATA cannot be
 	 * modified.
-	 * Note: on i.MX7 there are four data fields to write for banked write
-	 *       with the fuse blowing operation only taking place after data0
-	 *	 has been written. This is why data0 must always be the last
-	 *	 register written.
 	 */
-	if (!priv->params->banked) {
-		writel(*buf, priv->base + IMX_OCOTP_ADDR_DATA0);
-	} else {
-		switch (word) {
-		case 0:
-			writel(0, priv->base + IMX_OCOTP_ADDR_DATA1);
-			writel(0, priv->base + IMX_OCOTP_ADDR_DATA2);
-			writel(0, priv->base + IMX_OCOTP_ADDR_DATA3);
-			writel(*buf, priv->base + IMX_OCOTP_ADDR_DATA0);
-			break;
-		case 1:
-			writel(*buf, priv->base + IMX_OCOTP_ADDR_DATA1);
-			writel(0, priv->base + IMX_OCOTP_ADDR_DATA2);
-			writel(0, priv->base + IMX_OCOTP_ADDR_DATA3);
-			writel(0, priv->base + IMX_OCOTP_ADDR_DATA0);
-			break;
-		case 2:
-			writel(0, priv->base + IMX_OCOTP_ADDR_DATA1);
-			writel(*buf, priv->base + IMX_OCOTP_ADDR_DATA2);
-			writel(0, priv->base + IMX_OCOTP_ADDR_DATA3);
-			writel(0, priv->base + IMX_OCOTP_ADDR_DATA0);
-			break;
-		case 3:
-			writel(0, priv->base + IMX_OCOTP_ADDR_DATA1);
-			writel(0, priv->base + IMX_OCOTP_ADDR_DATA2);
-			writel(*buf, priv->base + IMX_OCOTP_ADDR_DATA3);
-			writel(0, priv->base + IMX_OCOTP_ADDR_DATA0);
-			break;
-		}
-	}
+	writel(*buf, priv->base + IMX_OCOTP_ADDR_DATA);
 
 	/* 47.4.1.4.5
 	 * Once complete, the controller will clear BUSY. A write request to a
@@ -390,51 +319,19 @@ static struct nvmem_config imx_ocotp_nvmem_config = {
 	.name = "imx-ocotp",
 	.read_only = false,
 	.word_size = 4,
-	.stride = 4,
+	.stride = 1,
 	.owner = THIS_MODULE,
 	.reg_read = imx_ocotp_read,
 	.reg_write = imx_ocotp_write,
 };
 
-static const struct octp_params params[] = {
-	{
-		.nregs = 128,
-		.banked = false,
-		.regs_per_bank = 0,
-		.mx7_timing = false
-	},
-	{
-		.nregs = 64,
-		.banked = false,
-		.regs_per_bank = 0,
-		.mx7_timing = false
-	},
-	{
-		.nregs = 128,
-		.banked = false,
-		.regs_per_bank = 0,
-		.mx7_timing = false
-	},
-	{
-		.nregs = 128,
-		.banked = false,
-		.regs_per_bank = 0,
-		.mx7_timing = false
-	},
-	{
-		.nregs = 64,
-		.banked = true,
-		.regs_per_bank = 4,
-		.mx7_timing = true
-	},
-};
-
 static const struct of_device_id imx_ocotp_dt_ids[] = {
-	{ .compatible = "fsl,imx6q-ocotp",  (void *)&params[0] },
-	{ .compatible = "fsl,imx6sl-ocotp", (void *)&params[1] },
-	{ .compatible = "fsl,imx6sx-ocotp", (void *)&params[2] },
-	{ .compatible = "fsl,imx6ul-ocotp", (void *)&params[3] },
-	{ .compatible = "fsl,imx7d-ocotp", (void *)&params[4] },
+	{ .compatible = "fsl,imx6q-ocotp",  (void *)128 },
+	{ .compatible = "fsl,imx6sl-ocotp", (void *)64 },
+	{ .compatible = "fsl,imx6sx-ocotp", (void *)128 },
+	{ .compatible = "fsl,imx6ul-ocotp", (void *)128 },
+	{ .compatible = "fsl,imx7d-ocotp", (void *)64 },
+	{ .compatible = "fsl,imx8mq-ocotp", (void *)256 },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, imx_ocotp_dt_ids);
@@ -463,8 +360,9 @@ static int imx_ocotp_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->clk);
 
 	of_id = of_match_device(imx_ocotp_dt_ids, dev);
-	priv->params = (struct octp_params *)of_id->data;
-	imx_ocotp_nvmem_config.size = 4 * priv->params->nregs;
+	priv->nregs = (unsigned long)of_id->data;
+	priv->dev = dev;
+	imx_ocotp_nvmem_config.size = 4 * priv->nregs;
 	imx_ocotp_nvmem_config.dev = dev;
 	imx_ocotp_nvmem_config.priv = priv;
 	priv->config = &imx_ocotp_nvmem_config;
@@ -496,5 +394,5 @@ static struct platform_driver imx_ocotp_driver = {
 module_platform_driver(imx_ocotp_driver);
 
 MODULE_AUTHOR("Philipp Zabel <p.zabel@pengutronix.de>");
-MODULE_DESCRIPTION("i.MX6/i.MX7 OCOTP fuse box driver");
+MODULE_DESCRIPTION("i.MX6 OCOTP fuse box driver");
 MODULE_LICENSE("GPL v2");
