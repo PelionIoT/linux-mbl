@@ -73,6 +73,17 @@ config BMG160_SPI
 	tristate
 	select REGMAP_SPI
 
+config FXAS2100X
+	tristate "NXP FXAS2100X Gyro Sensor"
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for NXP FXAS2100X family Tri-axis Gyro
+	  Sensor driver connected via I2C or SPI.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called fxas2100x_i2c or fxas2100x_spi.
+
 config HID_SENSOR_GYRO_3D
 	depends on HID_SENSOR_HUB
 	select IIO_BUFFER
