@@ -78,6 +78,7 @@ config FXAS2100X
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	select FXAS2100X_I2C if (I2C)
+	select FXAS2100X_SPI if (SPI)
 	depends on (I2C || SPI_MASTER)
 	help
 	  Say yes here to build support for NXP FXAS2100X family Tri-axis Gyro
@@ -89,6 +90,10 @@ config FXAS2100X
 config FXAS2100X_I2C
 	tristate
 	select REGMAP_I2C
+
+config FXAS2100X_SPI
+	tristate
+	select REGMAP_SPI
 
 config HID_SENSOR_GYRO_3D
 	depends on HID_SENSOR_HUB
