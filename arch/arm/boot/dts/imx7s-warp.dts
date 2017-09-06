@@ -242,6 +242,11 @@
 		compatible = "fsl,mpl3115";
 		reg = <0x60>;
 	};
+
+	fxas2100x@20 {
+		compatible = "nxp,fxas2100x";
+		reg = <0x20>;
+	};
 };
 
 &sai1 {

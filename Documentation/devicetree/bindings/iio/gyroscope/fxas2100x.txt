@@ -1,0 +1,14 @@
+* NXP FXAS2100X Gyroscope device tree bindings
+
+http://www.nxp.com/products/sensors/gyroscopes/3-axis-digital-gyroscope:FXAS21002C
+
+Required properties:
+  - compatible : should be "nxp,fxas2100x"
+  - reg : the I2C address of the sensor
+
+Example:
+
+fxas2100x@20 {
+	compatible = "nxp,fxas2100x"
+	reg = <0x20>;
+};
