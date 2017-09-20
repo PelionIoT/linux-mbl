@@ -19,6 +19,7 @@ obj-$(CONFIG_DMARD09)	+= dmard09.o
 obj-$(CONFIG_DMARD10)	+= dmard10.o
 obj-$(CONFIG_FXOS8700_ACCEL_MAGN) += fxos8700_core.o
 obj-$(CONFIG_FXOS8700_ACCEL_MAGN_I2C) += fxos8700_i2c.o
+obj-$(CONFIG_FXOS8700_ACCEL_MAGN_SPI) += fxos8700_spi.o
 obj-$(CONFIG_HID_SENSOR_ACCEL_3D) += hid-sensor-accel-3d.o
 obj-$(CONFIG_KXCJK1013) += kxcjk-1013.o
 obj-$(CONFIG_KXSD9)	+= kxsd9.o
