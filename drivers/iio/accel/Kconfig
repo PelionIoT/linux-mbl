@@ -134,6 +134,16 @@ config DMARD10
 	  Choosing M will build the driver as a module. If so, the module
 	  will be called dmard10.
 
+config FXOS8700_ACCEL_MAGN
+	tristate "NXP FXOS8700 Accelerometer / Magnetometer Driver"
+	select IIO_BUFFER
+	select REGMAP
+	help
+	  Say yes here to build support for the FXOS8700 accelerometer /
+	  magnetometer.
+
+	  This is a combo module with both accelerometer and magnetometer.
+
 config HID_SENSOR_ACCEL_3D
 	depends on HID_SENSOR_HUB
 	select IIO_BUFFER
