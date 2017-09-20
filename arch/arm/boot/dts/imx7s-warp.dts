@@ -247,6 +247,12 @@
 		compatible = "nxp,fxas2100x";
 		reg = <0x20>;
 	};
+
+	fxos8700@1e {
+		compatible = "nxp,fxos8700";
+		reg = <0x1e>;
+	};
+
 };
 
 &sai1 {

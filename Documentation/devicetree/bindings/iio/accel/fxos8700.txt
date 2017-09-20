@@ -1,0 +1,12 @@
+* NXP FXOS8700 Accelerometer / Magnetometer device tree bindings
+
+Required properties:
+  - compatible : should be "nxp, fxos8700"
+  - reg : the I2C address of the sensor
+
+Example:
+
+fxos8700@1e {
+	compatible = "nxp, fxos8700"
+	reg = <0x1e>;
+};
