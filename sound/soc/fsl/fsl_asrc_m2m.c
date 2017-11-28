@@ -8,6 +8,9 @@
  * kind, whether express or implied.
  */
 
+#include <linux/miscdevice.h>
+#include <linux/sched/signal.h>
+
 #define FSL_ASRC_INPUTFIFO_WML	0x4
 #define FSL_ASRC_OUTPUTFIFO_WML	0x2
 
