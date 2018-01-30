@@ -134,17 +134,7 @@ ENTRY(cpu_do_switch_mm)
 	bfi	x0, x1, #48, #16		// set the ASID
 	msr	ttbr0_el1, x0			// set TTBR0
 	isb
-alternative_if_not ARM64_WORKAROUND_CAVIUM_27456
-	ret
-	nop
-	nop
-	nop
-alternative_else
-	ic	iallu
-	dsb	nsh
-	isb
-	ret
-alternative_endif
+	b	post_ttbr_update_workaround	// Back to C code...
 ENDPROC(cpu_do_switch_mm)
 
 	.pushsection ".idmap.text", "ax"
@@ -174,6 +164,8 @@ ENTRY(idmap_cpu_replace_ttbr1)
 	ret
 ENDPROC(idmap_cpu_replace_ttbr1)
 	.popsection
+
+	.section ".text.init", #alloc, #execinstr
 
 /*
  *	__cpu_setup
