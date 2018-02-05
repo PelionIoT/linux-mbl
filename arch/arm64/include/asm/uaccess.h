@@ -30,6 +30,7 @@
 #include <asm/ptrace.h>
 #include <asm/sysreg.h>
 #include <asm/errno.h>
+#include <asm/processor.h>
 #include <asm/memory.h>
 #include <asm/compiler.h>
 
@@ -64,6 +65,13 @@ extern int fixup_exception(struct pt_regs *regs);
 static inline void set_fs(mm_segment_t fs)
 {
 	current_thread_info()->addr_limit = fs;
+
+	/*
+	 * Prevent a mispredicted conditional call to set_fs from forwarding
+	 * the wrong address limit to access_ok under speculation.
+	 */
+	dsb(nsh);
+	isb();
 
 	/*
 	 * Enable/disable UAO so that copy_to_user() etc can access
