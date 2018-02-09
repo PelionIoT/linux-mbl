@@ -8,6 +8,14 @@ config VIDEO_IMX_MEDIA
 	  Say yes here to enable support for video4linux media controller
 	  driver for the i.MX5/6 SOC.
 
+config VIDEO_IMX7_CSI
+	tristate "i.MX7 Camera Sensor Interface driver"
+	depends on MEDIA_CONTROLLER && VIDEO_V4L2 && ARCH_MXC
+	depends on VIDEO_DEV && I2C && VIDEO_V4L2_SUBDEV_API
+	default y
+	---help---
+	  A video4linux camera sensor interface driver for i.MX7.
+
 if VIDEO_IMX_MEDIA
 menu "i.MX5/6 Media Sub devices"
 
