@@ -1,0 +1,34 @@
+* Omnivision OV2680 MIPI CSI-2 sensor
+
+Required Properties:
+- compatible: should be "ovti,ov2680"
+- clocks: reference to the xvclk input clock.
+- clock-names: should be "xvclk".
+
+Optional Properties:
+- powerdown-gpios: reference to the GPIO connected to the powerdown pin,
+		     if any. This is an active high signal to the OV2680.
+
+The device node must contain one 'port' child node for its digital output
+video port, in accordance with the video interface bindings defined in
+Documentation/devicetree/bindings/media/video-interfaces.txt.
+
+Example:
+
+&i2c2 {
+	ov2680: camera@36 {
+		compatible = "ovti,ov2680";
+		reg = <0x36>;
+		clocks = <&osc>;
+		clock-names = "xvclk";
+		powerdown-gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;
+
+		port {
+			ov2680_mipi_ep: endpoint {
+				remote-endpoint = <&mipi_sensor_ep>;
+				clock-lanes = <0>;
+				data-lanes = <1>;
+			};
+		};
+	};
+};
