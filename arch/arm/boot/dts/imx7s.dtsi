@@ -602,6 +602,12 @@
 						reg = <IMX7_POWER_DOMAIN_PCIE_PHY>;
 						power-supply = <&reg_1p0d>;
 					};
+
+					pgc_mipi_phy: pgc-power-domain@IMX7_POWER_DOMAIN_MIPI_PHY {
+						#power-domain-cells = <0>;
+						reg = <IMX7_POWER_DOMAIN_MIPI_PHY>;
+						power-supply = <&reg_1p0d>;
+					};
 				};
 			};
 		};
