@@ -18,7 +18,6 @@
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
-#include <linux/of_graph.h>
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
@@ -546,6 +545,7 @@ static int ov2680_mode_set(struct ov2680_dev *sensor)
 	if (ret < 0)
 		return ret;
 
+	sensor->mode_pending_changes = false;
 
 	return 0;
 }
