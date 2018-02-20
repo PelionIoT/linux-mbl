@@ -558,7 +558,7 @@ static int ov2680_mode_restore(struct ov2680_dev *sensor)
 	if (ret < 0)
 		return ret;
 
-	return 0;
+	return ov2680_mode_set(sensor);
 }
 
 static int ov2680_disable(struct ov2680_dev *sensor)
