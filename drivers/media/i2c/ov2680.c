@@ -768,6 +768,7 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 		fmt = v4l2_subdev_get_try_format(sd, cfg, 0);
 
 		*fmt = format->format;
+		goto unlock;
 	}
 
 	fmt->width = mode->width;
