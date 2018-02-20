@@ -498,6 +498,16 @@ static int ov2680_auto_exposure_disable(struct ov2680_dev *sensor)
 	return ov2680_exposure_set(sensor, false);
 }
 
+static int ov2680_stream_enable(struct ov2680_dev *sensor)
+{
+	return ov2680_write_reg(sensor, OV2680_REG_STREAM_CTRL, 1);
+}
+
+static int ov2680_stream_disable(struct ov2680_dev *sensor)
+{
+	return ov2680_write_reg(sensor, OV2680_REG_STREAM_CTRL, 0);
+}
+
 static int ov2680_mode_set_direct(struct ov2680_dev *sensor)
 {
 	int ret;
@@ -514,7 +524,6 @@ static int ov2680_mode_set_direct(struct ov2680_dev *sensor)
 
 static int ov2680_mode_set(struct ov2680_dev *sensor)
 {
-	u32 wait4stable_ms;
 	int ret;
 
 	ret = ov2680_auto_gain_disable(sensor);
@@ -537,12 +546,6 @@ static int ov2680_mode_set(struct ov2680_dev *sensor)
 	if (ret < 0)
 		return ret;
 
-	if (sensor->current_mode->id == OV2680_MODE_UXGA_1600_1200)
-		wait4stable_ms = 267;
-	else
-		wait4stable_ms = 600;
-
-	msleep(wait4stable_ms);
 
 	return 0;
 }
@@ -589,6 +592,12 @@ static int ov2680_enable(struct ov2680_dev *sensor)
 		goto disable;
 
 	sensor->is_enabled = true;
+
+	/* Set clock lane into LP-11 state */
+	ov2680_stream_enable(sensor);
+	usleep_range(1000, 2000);
+	ov2680_stream_disable(sensor);
+
 	return 0;
 
 disable:
@@ -619,16 +628,6 @@ static int ov2680_s_power(struct v4l2_subdev *sd, int on)
 	}
 
 	return ret;
-}
-
-static int ov2680_stream_enable(struct ov2680_dev *sensor)
-{
-	return ov2680_write_reg(sensor, OV2680_REG_STREAM_CTRL, 1);
-}
-
-static int ov2680_stream_disable(struct ov2680_dev *sensor)
-{
-	return ov2680_write_reg(sensor, OV2680_REG_STREAM_CTRL, 0);
 }
 
 static int ov2680_g_frame_interval(struct v4l2_subdev *sd,
