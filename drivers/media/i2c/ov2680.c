@@ -831,6 +831,9 @@ static int ov2680_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	struct ov2680_dev *sensor = to_ov2680_dev(sd);
 	int val;
 
+	if (!sensor->is_enabled)
+		return 0;
+
 	switch (ctrl->id) {
 	case V4L2_CID_AUTOGAIN:
 		if (!ctrl->val)
