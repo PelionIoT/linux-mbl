@@ -645,6 +645,12 @@ static int ov2680_g_frame_interval(struct v4l2_subdev *sd,
 static int ov2680_s_frame_interval(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_frame_interval *fi)
 {
+	struct ov2680_dev *sensor = to_ov2680_dev(sd);
+
+	if (fi->interval.denominator != sensor->frame_interval.denominator ||
+		fi->interval.numerator != sensor->frame_interval.numerator)
+		return -EINVAL;
+
 	return 0;
 }
 
