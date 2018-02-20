@@ -984,7 +984,7 @@ static int ov2680_v4l2_init(struct ov2680_dev *sensor)
 	ctrls->gain->flags |= V4L2_CTRL_FLAG_VOLATILE;
 	ctrls->exposure->flags |= V4L2_CTRL_FLAG_VOLATILE;
 
-	v4l2_ctrl_auto_cluster(2, &ctrls->auto_gain, 0, true);
+	v4l2_ctrl_auto_cluster(2, &ctrls->auto_gain, 1, true);
 	v4l2_ctrl_auto_cluster(2, &ctrls->auto_exp, 1, true);
 
 	sensor->sd.ctrl_handler = hdl;
