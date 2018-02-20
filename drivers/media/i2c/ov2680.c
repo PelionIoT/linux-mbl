@@ -465,18 +465,17 @@ static int ov2680_exposure_set(struct ov2680_dev *sensor, bool auto_exp)
 	exp = (u32)ctrls->exposure->val;
 	exp <<= 4;
 
-	ret = ov2680_write_reg(sensor, OV2680_REG_EXPOSURE_PK_LOW,
-			       (exp << 4) & 0xf0);
+	ret = ov2680_write_reg(sensor, OV2680_REG_EXPOSURE_PK_LOW, exp & 0xf0);
 	if (ret)
 		return ret;
 
 	ret = ov2680_write_reg(sensor, OV2680_REG_EXPOSURE_PK_MED,
-			       (exp >> 4) & 0xff);
+			       (exp >> 8) & 0xff);
 	if (ret)
 		return ret;
 
 	return ov2680_write_reg(sensor, OV2680_REG_EXPOSURE_PK_HIGH,
-				(exp >> 12) & 0x0f);
+				(exp >> 16) & 0x0f);
 }
 
 static int ov2680_exposure_get(struct ov2680_dev *sensor)
@@ -487,19 +486,19 @@ static int ov2680_exposure_get(struct ov2680_dev *sensor)
 	ret = ov2680_read_reg(sensor, OV2680_REG_EXPOSURE_PK_HIGH, &temp);
 	if (ret)
 		return ret;
-	exp = ((int)temp & 0x0f) << 12;
+	exp = ((int)temp & 0x0f) << 16;
 
 	ret = ov2680_read_reg(sensor, OV2680_REG_EXPOSURE_PK_MED, &temp);
 	if (ret)
 		return ret;
-	exp |= ((int)temp << 4);
+	exp |= ((int)temp & 0xff) << 8;
 
 	ret = ov2680_read_reg(sensor, OV2680_REG_EXPOSURE_PK_LOW, &temp);
 	if (ret)
 		return ret;
-	exp |= ((int)temp & 0xf0) >> 4;
+	exp |= ((int)temp & 0xf0);
 
-	return exp;
+	return exp >> 4;
 }
 
 static int ov2680_auto_exposure_enable(struct ov2680_dev *sensor)
