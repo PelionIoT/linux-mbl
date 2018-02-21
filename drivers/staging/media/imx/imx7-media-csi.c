@@ -889,7 +889,8 @@ static void imx7_stop_streaming(struct vb2_queue *vq)
 				 internal.queue) {
 		list_del_init(&buf->internal.queue);
 
-		if (buf->vb.vb2_buf.state == VB2_BUF_STATE_ACTIVE)
+		if (buf->vb.vb2_buf.state == VB2_BUF_STATE_ACTIVE &&
+			!buf->internal.discard)
 			vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
 
