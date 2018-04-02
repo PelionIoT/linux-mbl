@@ -276,11 +276,14 @@ struct imx7_csi_dev {
 	struct v4l2_async_subdev	*async_subdevs[2];
 
 	bool		csi_mux_mipi;
+	bool		is_streamon;
 	const bool	*rx_fifo_rst;
 	struct imx7_csi_mux csi_mux;
 };
 
 static const struct of_device_id imx7_csi_dt_ids[];
+static int imx7_vidioc_streamoff(struct file *file, void *priv,
+				 enum v4l2_buf_type i);
 
 static int csi_read(struct imx7_csi_dev *csi, unsigned int offset)
 {
@@ -1100,6 +1103,8 @@ static int imx7_csi_release(struct file *file)
 
 	mutex_lock(&csi_dev->lock);
 
+	imx7_vidioc_streamoff(file, NULL, V4L2_BUF_TYPE_VIDEO_CAPTURE);
+
 	imx7_stop_streaming(vq);
 	vb2_queue_release(vq);
 
@@ -1350,12 +1355,17 @@ static int imx7_vidioc_streamon(struct file *file, void *priv,
 	struct v4l2_subdev *sd = csi_dev->sd;
 	int ret;
 
+	if (csi_dev->is_streamon)
+		return 0;
+
 	if (i != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
 	ret = vb2_streamon(&csi_dev->vb2_vidq, i);
 	if (!ret)
 		v4l2_subdev_call(sd, video, s_stream, 1);
+
+	csi_dev->is_streamon = true;
 
 	return ret;
 }
@@ -1365,6 +1375,9 @@ static int imx7_vidioc_streamoff(struct file *file, void *priv,
 {
 	struct imx7_csi_dev *csi_dev = video_drvdata(file);
 	struct v4l2_subdev *sd = csi_dev->sd;
+
+	if (!csi_dev->is_streamon)
+		return 0;
 
 	if (i != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -1376,6 +1389,8 @@ static int imx7_vidioc_streamoff(struct file *file, void *priv,
 	vb2_streamoff(&csi_dev->vb2_vidq, i);
 
 	v4l2_subdev_call(sd, video, s_stream, 0);
+
+	csi_dev->is_streamon = false;
 
 	return 0;
 }
