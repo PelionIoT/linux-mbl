@@ -525,7 +525,7 @@ static void csi_set_imagpara(struct imx7_csi_dev *csi, int width, int height)
 	int imag_para = 0;
 	unsigned long cr3 = __raw_readl(csi->regbase + CSI_CSICR3);
 
-	imag_para = (width << 16) | height;
+	imag_para = (width / 2 << 16) | height;
 	__raw_writel(imag_para, csi->regbase + CSI_CSIIMAG_PARA);
 
 	/* reflash the embedded DMA controller */
