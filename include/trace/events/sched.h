@@ -999,7 +999,7 @@ TRACE_EVENT(walt_update_task_ravg,
 		__entry->cs             = rq->curr_runnable_sum;
 		__entry->ps             = rq->prev_runnable_sum;
 		__entry->util           = rq->prev_runnable_sum << SCHED_CAPACITY_SHIFT;
-		do_div(__entry->util, walt_ravg_window);
+		__entry->util		= div_u64(__entry->util, walt_ravg_window);
 		__entry->curr_window	= p->ravg.curr_window;
 		__entry->prev_window	= p->ravg.prev_window;
 		__entry->nt_cs		= rq->nt_curr_runnable_sum;
