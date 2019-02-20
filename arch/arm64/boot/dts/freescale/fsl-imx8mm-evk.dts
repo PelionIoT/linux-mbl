@@ -968,7 +968,7 @@
 	extcon = <0>, <&typec2_ptn5110>;
 	picophy,pre-emp-curr-control = <3>;
 	picophy,dc-vol-level-adjust = <7>;
-	status = "disabled";
+	status = "okay";
 };
 
 &usdhc1 {
