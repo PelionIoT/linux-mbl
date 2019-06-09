@@ -9,8 +9,8 @@
 
 #include "imx6ul-pico.dtsi"
 / {
-	model = "TechNexion PICO-IMX6UL and HOBBIT baseboard";
-	compatible = "technexion,imx6ul-pico-hobbit", "fsl,imx6ul";
+	model = "TechNexion PICO-IMX6UL and PI baseboard";
+	compatible = "technexion,imx6ul-pico-pi", "fsl,imx6ul";
 
 	leds {
 		compatible = "gpio-leds";
@@ -19,7 +19,7 @@
 
 		led {
 			label = "gpio-led";
-			gpios = <&gpio1 29 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio4 20 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
@@ -58,6 +58,9 @@
 };
 
 &i2c3 {
+	clock_frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c3>;
 	status = "okay";
 
 	polytouch: touchscreen@38 {
@@ -68,12 +71,6 @@
 		reset-gpios = <&gpio4 24 GPIO_ACTIVE_LOW>;
 		touchscreen-size-x = <800>;
 		touchscreen-size-y = <480>;
-	};
-
-	adc081c: adc@50 {
-		compatible = "ti,adc081c";
-		reg = <0x50>;
-		vref-supply = <&reg_3p3v>;
 	};
 };
 
@@ -94,7 +91,7 @@
 
 	pinctrl_gpio_leds: gpioledsgrp {
 		fsl,pins = <
-			MX6UL_PAD_UART4_RX_DATA__GPIO1_IO29	0x10b0
+			MX6UL_PAD_CSI_HSYNC__GPIO4_IO20		0x10b0
 		>;
 	};
 };
